@@ -98,11 +98,11 @@ class PDFEditor {
         });
 
         // Prevent right-click context menu (prevents download)
-        // document.addEventListener('contextmenu', (e) => {
-        //     if (e.target.closest('.pdf-container')) {
-        //         e.preventDefault();
-        //     }
-        // });
+        document.addEventListener('contextmenu', (e) => {
+            if (e.target.closest('.pdf-container')) {
+                e.preventDefault();
+            }
+        });
 
         // Prevent common download shortcuts
         document.addEventListener('keydown', (e) => {
