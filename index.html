@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Editor - No Download</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="controls">
+                <label for="fileInput" class="btn btn-primary">
+                    <input type="file" id="fileInput" accept=".pdf" style="display: none;">
+                    Open
+                </label>
+                <button id="saveBtn" class="btn btn-success" disabled>Save</button>
+                <button id="clearBtn" class="btn btn-danger" disabled>Clear</button>
+            </div>
+        </header>
+
+        <div class="toolbar" id="toolbar" style="display: none;">
+            <div class="tool-group">
+                <label>Tool:</label>
+                <button class="tool-btn active" data-tool="select" title="Select/Move">✋</button>
+                <button class="tool-btn" data-tool="text" title="Add Text">T</button>
+                <button class="tool-btn" data-tool="draw" title="Draw">✏️</button>
+                <button class="tool-btn" data-tool="highlight" title="Highlight">🖍️</button>
+                <button class="tool-btn" data-tool="erase" title="Erase">🩹</button>
+            </div>
+            <div class="tool-group">
+                <label>Color:</label>
+                <input type="color" id="colorPicker" value="#ff0000">
+            </div>
+            <div class="tool-group">
+                <label>Size:</label>
+                <input type="range" id="sizeSlider" min="1" max="20" value="3">
+                <span id="sizeValue">3</span>
+            </div>
+            <div class="tool-group">
+                <label>Opacity:</label>
+                <input type="range" id="opacitySlider" min="0.1" max="1" step="0.1" value="0.3">
+                <span id="opacityValue">0.3</span>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="pdf-viewer-container">
+                <div id="pdfContainer" class="pdf-container">
+                    <div class="placeholder">
+                        <p>📄 Select a PDF file to begin editing</p>
+                    </div>
+                </div>
+                <div class="viewer-controls" id="viewerControls" style="display: none;">
+                    <button id="prevPage" class="btn btn-small">← Previous</button>
+                    <span id="pageInfo">Page 1 of 1</span>
+                    <button id="nextPage" class="btn btn-small">Next →</button>
+                    <input type="number" id="zoomInput" value="100" min="25" max="200" step="25">
+                    <span>%</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="statusBar" class="status-bar" style="display: none;">
+            <span id="statusText">Ready</span>
+        </div>
+    </div>
+
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+        <p>Loading PDF, please wait...</p>
+    </div>
+
+    <canvas id="annotationCanvas" style="display: none;"></canvas>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
+

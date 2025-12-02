@@ -1,0 +1,22 @@
+{
+  "name": "pdf-editor-no-download",
+  "version": "1.0.0",
+  "description": "A web-based PDF editor that allows editing and saving without download capability",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx http-server -p 8080 -c-1",
+    "dev": "npx http-server -p 8080 -c-1 -o"
+  },
+  "keywords": [
+    "pdf",
+    "editor",
+    "web",
+    "no-download"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}
+
