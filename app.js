@@ -231,10 +231,10 @@ class PDFEditor {
     attachDrawingEvents(canvas, pageNum) {
         const ctx = canvas.getContext('2d');
         
-        canvas.addEventListener('mousedown', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            this.startX = e.clientX - rect.left;
-            this.startY = e.clientY - rect.top;
+        const handlePointerDown = (e) => {
+            const { x, y } = this.getEventPosition(e, canvas);
+            this.startX = x;
+            this.startY = y;
             
             // مسح في وضع erase
             if (this.currentTool === 'erase') {
@@ -258,12 +258,10 @@ class PDFEditor {
             if (this.currentTool === 'text') {
                 this.addTextAnnotation(e, canvas, pageNum);
             }
-        });
+        };
 
-        canvas.addEventListener('mousemove', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            const currentX = e.clientX - rect.left;
-            const currentY = e.clientY - rect.top;
+        const handlePointerMove = (e) => {
+            const { x: currentX, y: currentY } = this.getEventPosition(e, canvas);
 
             // مسح متكرر أثناء السحب
             if (this.currentTool === 'erase') {
@@ -311,9 +309,9 @@ class PDFEditor {
                 ctx.fillRect(previewX, previewY, previewW, previewH);
                 ctx.restore();
             }
-        });
+        };
 
-        canvas.addEventListener('mouseup', (e) => {
+        const handlePointerUp = (e) => {
             // إنهاء سحب النص
             if (this.currentTool === 'select' && this.draggingAnnotation) {
                 this.draggingAnnotation = null;
@@ -322,9 +320,7 @@ class PDFEditor {
 
             if (!this.isDrawing) return;
 
-            const rect = canvas.getBoundingClientRect();
-            const endX = e.clientX - rect.left;
-            const endY = e.clientY - rect.top;
+            const { x: endX, y: endY } = this.getEventPosition(e, canvas);
 
             if (this.currentTool === 'highlight') {
                 this.saveAnnotation('highlight', pageNum, {
@@ -341,12 +337,39 @@ class PDFEditor {
             }
 
             this.isDrawing = false;
-        });
+        };
 
-        canvas.addEventListener('mouseleave', () => {
+        const handlePointerLeave = () => {
             this.isDrawing = false;
             this.draggingAnnotation = null;
-        });
+        };
+
+        // Mouse events
+        canvas.addEventListener('mousedown', handlePointerDown);
+        canvas.addEventListener('mousemove', handlePointerMove);
+        canvas.addEventListener('mouseup', handlePointerUp);
+        canvas.addEventListener('mouseleave', handlePointerLeave);
+
+        // Touch events (for mobile)
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handlePointerDown(e);
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            handlePointerMove(e);
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            handlePointerUp(e);
+        }, { passive: false });
+
+        canvas.addEventListener('touchcancel', (e) => {
+            e.preventDefault();
+            handlePointerLeave(e);
+        }, { passive: false });
     }
 
     drawLine(ctx, x1, y1, x2, y2) {
@@ -366,9 +389,7 @@ class PDFEditor {
             return;
         }
 
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const { x, y } = this.getEventPosition(e, canvas);
 
         const ctx = canvas.getContext('2d');
         const metrics = ctx.measureText(text);
@@ -486,6 +507,28 @@ class PDFEditor {
         const cx = x1 + clampedT * dx;
         const cy = y1 + clampedT * dy;
         return Math.hypot(px - cx, py - cy);
+    }
+
+    getEventPosition(event, canvas) {
+        const rect = canvas.getBoundingClientRect();
+        let clientX;
+        let clientY;
+
+        if (event.touches && event.touches.length > 0) {
+            clientX = event.touches[0].clientX;
+            clientY = event.touches[0].clientY;
+        } else if (event.changedTouches && event.changedTouches.length > 0) {
+            clientX = event.changedTouches[0].clientX;
+            clientY = event.changedTouches[0].clientY;
+        } else {
+            clientX = event.clientX;
+            clientY = event.clientY;
+        }
+
+        return {
+            x: clientX - rect.left,
+            y: clientY - rect.top
+        };
     }
 
     renderAnnotations() {
