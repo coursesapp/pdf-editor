@@ -31,6 +31,10 @@ class PDFEditor {
 
         // For editing a specific text annotation via modal
         this.editingTextAnnotation = null;
+        // For editing a specific image annotation via modal
+        this.editingImageAnnotation = null;
+        // Cache for image objects used in annotations
+        this.imageCache = new Map();
         
         this.initializeElements();
         this.attachEventListeners();
@@ -102,6 +106,15 @@ class PDFEditor {
         this.highlightOpacityValue = document.getElementById('highlightOpacityValue');
         this.closeHighlightSettingsBtn = document.getElementById('closeHighlightSettings');
         this.applyHighlightSettingsBtn = document.getElementById('applyHighlightSettings');
+
+        // Image settings elements
+        // this.openImageSettingsBtn = document.getElementById('openImageSettings');
+        this.imageSettingsModal = document.getElementById('imageSettingsModal');
+        this.imageFileInput = document.getElementById('imageFileInput');
+        this.imageScaleInput = document.getElementById('imageScaleInput');
+        this.imageScaleValue = document.getElementById('imageScaleValue');
+        this.closeImageSettingsBtn = document.getElementById('closeImageSettings');
+        this.applyImageSettingsBtn = document.getElementById('applyImageSettings');
     }
 
     attachEventListeners() {
@@ -133,6 +146,15 @@ class PDFEditor {
                 this.applyTextSettings();
             });
         }
+        // تحديث عرض قيمة حجم النص أثناء تحريك السلايدر داخل المودال
+        if (this.textSizeInput && this.textSizeValue) {
+            this.textSizeInput.addEventListener('input', (e) => {
+                const val = parseInt(e.target.value, 10);
+                if (!isNaN(val)) {
+                    this.textSizeValue.textContent = val;
+                }
+            });
+        }
 
         // Draw settings modal
         if (this.openDrawSettingsBtn) {
@@ -150,6 +172,15 @@ class PDFEditor {
                 this.applyDrawSettings();
             });
         }
+        // تحديث عرض قيمة حجم الرسم أثناء تحريك السلايدر داخل المودال
+        if (this.drawSizeInput && this.drawSizeValue) {
+            this.drawSizeInput.addEventListener('input', (e) => {
+                const val = parseInt(e.target.value, 10);
+                if (!isNaN(val)) {
+                    this.drawSizeValue.textContent = val;
+                }
+            });
+        }
 
         // Highlight settings modal
         if (this.openHighlightSettingsBtn) {
@@ -165,6 +196,41 @@ class PDFEditor {
         if (this.applyHighlightSettingsBtn) {
             this.applyHighlightSettingsBtn.addEventListener('click', () => {
                 this.applyHighlightSettings();
+            });
+        }
+        // تحديث عرض قيمة الـ opacity أثناء تحريك السلايدر داخل المودال
+        if (this.highlightOpacityInput && this.highlightOpacityValue) {
+            this.highlightOpacityInput.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                if (!isNaN(val)) {
+                    this.highlightOpacityValue.textContent = val.toFixed(1);
+                }
+            });
+        }
+
+        // Image settings modal
+        // if (this.openImageSettingsBtn) {
+        //     this.openImageSettingsBtn.addEventListener('click', () => {
+        //         this.openImageSettings(null);
+        //     });
+        // }
+        if (this.closeImageSettingsBtn) {
+            this.closeImageSettingsBtn.addEventListener('click', () => {
+                this.closeImageSettings();
+            });
+        }
+        if (this.applyImageSettingsBtn) {
+            this.applyImageSettingsBtn.addEventListener('click', () => {
+                this.applyImageSettings();
+            });
+        }
+        // تحديث عرض قيمة الـ scale للصورة أثناء تحريك السلايدر داخل المودال
+        if (this.imageScaleInput && this.imageScaleValue) {
+            this.imageScaleInput.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                if (!isNaN(val)) {
+                    this.imageScaleValue.textContent = val.toFixed(1);
+                }
             });
         }
 
@@ -313,14 +379,20 @@ class PDFEditor {
                 return;
             }
 
-            // تحريك text في وضع select
+            // تحريك النص / الصورة في وضع select
             if (this.currentTool === 'select') {
-                const hit = this.findTextAnnotationAt(pageNum, this.startX, this.startY, ctx);
+                const hit = this.findMovableAnnotationAt(pageNum, this.startX, this.startY, ctx);
                 if (hit) {
                     this.draggingAnnotation = hit;
                     this.dragOffsetX = this.startX - hit.data.x;
                     this.dragOffsetY = this.startY - hit.data.y;
                 }
+                return;
+            }
+
+            // إضافة صورة
+            if (this.currentTool === 'image') {
+                this.addImageAnnotation(e, canvas, pageNum);
                 return;
             }
 
@@ -340,7 +412,7 @@ class PDFEditor {
                 return;
             }
 
-            // سحب النص في وضع select
+            // سحب النص/الصورة في وضع select
             if (this.currentTool === 'select' && this.draggingAnnotation) {
                 const ann = this.draggingAnnotation;
                 ann.data.x = currentX - this.dragOffsetX;
@@ -383,7 +455,7 @@ class PDFEditor {
         };
 
         const handlePointerUp = (e) => {
-            // إنهاء سحب النص + دعم تعديل النص عند الضغط بدون سحب
+            // إنهاء سحب النص/الصورة + دعم فتح إعدادات عند الضغط بدون سحب
             if (this.currentTool === 'select' && this.draggingAnnotation) {
                 const { x: endX, y: endY } = this.getEventPosition(e, canvas);
                 const moveDistance = Math.hypot(endX - this.startX, endY - this.startY);
@@ -391,10 +463,16 @@ class PDFEditor {
                 const ann = this.draggingAnnotation;
                 this.draggingAnnotation = null;
 
-                // لو الضغط كان مجرد نقرة خفيفة (من غير سحب كبير) افتح نافذة إعدادات النص للتعديل
-                if (moveDistance < 5 && ann.type === 'text') {
-                    this.openTextSettings(ann);
-                    return;
+                // لو الضغط كان مجرد نقرة خفيفة (من غير سحب كبير) افتح نافذة الإعدادات المناسبة
+                if (moveDistance < 5) {
+                    if (ann.type === 'text') {
+                        this.openTextSettings(ann);
+                        return;
+                    }
+                    if (ann.type === 'image') {
+                        this.openImageSettings(ann);
+                        return;
+                    }
                 }
 
                 return;
@@ -447,7 +525,7 @@ class PDFEditor {
             // استدعاء منطق التحريك المشترك
             handlePointerMove(e);
 
-            // لو بنرسم/نمسح أو بنسحب نص امنع التمرير، غير كده اسمح بالتمرير
+            // لو بنرسم/نمسح أو بنسحب عنصر امنع التمرير، غير كده اسمح بالتمرير
             if (this.isDrawing || this.currentTool === 'erase' || this.draggingAnnotation) {
                 e.preventDefault();
             }
@@ -508,6 +586,13 @@ class PDFEditor {
         this.isDrawing = false;
     }
 
+    addImageAnnotation(event, canvas, pageNum) {
+        // افتح إعدادات الصورة لإضافة صورة جديدة في موضع الضغط
+        const position = this.getEventPosition(event, canvas);
+        this.pendingImagePosition = { pageNum, x: position.x, y: position.y };
+        this.openImageSettings(null);
+    }
+
     saveAnnotation(type, pageNum, data) {
         this.annotations.push({
             type: type,
@@ -515,6 +600,48 @@ class PDFEditor {
             data: data,
             id: Date.now() + Math.random()
         });
+    }
+
+    findMovableAnnotationAt(pageNum, x, y, ctx) {
+        // يسمح بتحريك النص والصور
+        const pageAnnotations = this.annotations.filter(
+            a => a.page === pageNum && (a.type === 'text' || a.type === 'image')
+        );
+
+        for (const ann of pageAnnotations) {
+            const d = ann.data;
+
+            if (d.type === 'text') {
+                const size = (d.size || this.currentSize) * 5;
+                let width = d.width;
+                let height = d.height || size;
+
+                if (!width) {
+                    ctx.font = `${size}px Arial`;
+                    width = ctx.measureText(d.text || '').width;
+                }
+
+                const left = d.x;
+                const top = d.y - height;
+                const right = left + width;
+                const bottom = d.y;
+
+                if (x >= left && x <= right && y >= top && y <= bottom) {
+                    return ann;
+                }
+            } else if (d.type === 'image') {
+                const left = d.x;
+                const top = d.y;
+                const right = left + d.width;
+                const bottom = top + d.height;
+
+                if (x >= left && x <= right && y >= top && y <= bottom) {
+                    return ann;
+                }
+            }
+        }
+
+        return null;
     }
 
     findTextAnnotationAt(pageNum, x, y, ctx) {
@@ -583,6 +710,14 @@ class PDFEditor {
                 const dist = this.pointToSegmentDistance(x, y, d.startX, d.startY, d.endX, d.endY);
                 const threshold = (d.size || this.currentSize) * 2;
                 if (dist <= threshold) {
+                    return i;
+                }
+            } else if (d.type === 'image') {
+                const left = d.x;
+                const top = d.y;
+                const right = left + d.width;
+                const bottom = top + d.height;
+                if (x >= left && x <= right && y >= top && y <= bottom) {
                     return i;
                 }
             }
@@ -661,6 +796,22 @@ class PDFEditor {
                 } else if (data.type === 'text') {
                     ctx.font = `${(data.size || 3) * 5}px Arial`;
                     ctx.fillText(data.text, data.x, data.y);
+                } else if (data.type === 'image' && data.src) {
+                    let img = this.imageCache.get(data.src);
+                    if (!img) {
+                        img = new Image();
+                        img.onload = () => {
+                            // أعد الرسم بعد تحميل الصورة
+                            this.renderAnnotations();
+                        };
+                        img.src = data.src;
+                        this.imageCache.set(data.src, img);
+                    }
+                    if (img.complete && img.naturalWidth > 0) {
+                        const w = data.width || data.originalWidth || img.naturalWidth;
+                        const h = data.height || data.originalHeight || img.naturalHeight;
+                        ctx.drawImage(img, data.x, data.y, w, h);
+                    }
                 }
             });
         });
@@ -966,6 +1117,91 @@ class PDFEditor {
             }
         }
         this.closeHighlightSettings();
+    }
+
+    openImageSettings(annotation) {
+        if (!this.imageSettingsModal) return;
+
+        this.editingImageAnnotation = annotation || null;
+
+        if (this.imageScaleInput && this.imageScaleValue) {
+            this.imageScaleInput.value = '1';
+            this.imageScaleValue.textContent = '1.0';
+        }
+
+        // عند فتح الإعدادات من أجل صورة موجودة، لا نفرض اختيار صورة جديدة
+        if (this.imageFileInput) {
+            this.imageFileInput.value = '';
+        }
+
+        this.imageSettingsModal.style.display = 'flex';
+    }
+
+    closeImageSettings() {
+        if (!this.imageSettingsModal) return;
+        this.imageSettingsModal.style.display = 'none';
+        this.editingImageAnnotation = null;
+        this.pendingImagePosition = null;
+    }
+
+    applyImageSettings() {
+        const scaleInputVal = this.imageScaleInput ? parseFloat(this.imageScaleInput.value) : 1;
+        const scale = !isNaN(scaleInputVal) ? scaleInputVal : 1;
+
+        const file = this.imageFileInput ? this.imageFileInput.files[0] : null;
+
+        if (this.editingImageAnnotation) {
+            // تعديل صورة موجودة (تغيير الحجم فقط حالياً)
+            const ann = this.editingImageAnnotation;
+            const d = ann.data;
+
+            const baseW = d.originalWidth || d.width;
+            const baseH = d.originalHeight || d.height;
+
+            d.width = baseW * scale;
+            d.height = baseH * scale;
+
+            this.renderAnnotations();
+            this.closeImageSettings();
+            return;
+        }
+
+        // إنشاء صورة جديدة في الموضع المحدد
+        if (!file || !this.pendingImagePosition) {
+            this.closeImageSettings();
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const src = e.target.result;
+            const img = new Image();
+            img.onload = () => {
+                const baseW = img.naturalWidth;
+                const baseH = img.naturalHeight;
+
+                const width = baseW * scale;
+                const height = baseH * scale;
+
+                const { pageNum, x, y } = this.pendingImagePosition;
+
+                this.saveAnnotation('image', pageNum, {
+                    type: 'image',
+                    src,
+                    x,
+                    y,
+                    width,
+                    height,
+                    originalWidth: baseW,
+                    originalHeight: baseH
+                });
+
+                this.renderAnnotations();
+                this.closeImageSettings();
+            };
+            img.src = src;
+        };
+        reader.readAsDataURL(file);
     }
 }
 

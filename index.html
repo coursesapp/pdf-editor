@@ -26,12 +26,14 @@
                 <button class="tool-btn" data-tool="text" title="Add Text">T</button>
                 <button class="tool-btn" data-tool="draw" title="Draw">✏️</button>
                 <button class="tool-btn" data-tool="highlight" title="Highlight">🖍️</button>
+                <button class="tool-btn" data-tool="image" title="Add Image">🖼️</button>
                 <button class="tool-btn" data-tool="erase" title="Erase">🩹</button>
             </div>
             <div class="tool-group">
                 <button id="openTextSettings" class="btn btn-small" title="Text settings">Text ⚙️</button>
                 <button id="openDrawSettings" class="btn btn-small" title="Draw settings">Draw ⚙️</button>
                 <button id="openHighlightSettings" class="btn btn-small" title="Highlight settings">Highlight ⚙️</button>
+                <!-- <button id="openImageSettings" class="btn btn-small" title="Image settings">Image ⚙️</button> -->
             </div>
         </div>
 
@@ -119,6 +121,25 @@
                 <div class="modal-actions">
                     <button id="closeHighlightSettings" class="btn btn-small btn-danger">Close</button>
                     <button id="applyHighlightSettings" class="btn btn-small btn-success">Apply</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="imageSettingsModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <h2>Image Settings</h2>
+                <div class="modal-group">
+                    <label for="imageFileInput">Image:</label>
+                    <input type="file" id="imageFileInput" accept="image/*">
+                </div>
+                <div class="modal-group">
+                    <label for="imageScaleInput">Size:</label>
+                    <input type="range" id="imageScaleInput" min="0.2" max="3" step="0.1" value="1">
+                    <span id="imageScaleValue">1.0</span>
+                </div>
+                <div class="modal-actions">
+                    <button id="closeImageSettings" class="btn btn-small btn-danger">Close</button>
+                    <button id="applyImageSettings" class="btn btn-small btn-success">Apply</button>
                 </div>
             </div>
         </div>
