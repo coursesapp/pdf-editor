@@ -67,6 +67,13 @@ class PDFEditor {
         this.opacitySlider = document.getElementById('opacitySlider');
         this.opacityValue = document.getElementById('opacityValue');
         this.loadingOverlay = document.getElementById('loadingOverlay');
+        this.openTextSettingsBtn = document.getElementById('openTextSettings');
+        this.textSettingsModal = document.getElementById('textSettingsModal');
+        this.textColorInput = document.getElementById('textColorInput');
+        this.textSizeInput = document.getElementById('textSizeInput');
+        this.textSizeValue = document.getElementById('textSizeValue');
+        this.closeTextSettingsBtn = document.getElementById('closeTextSettings');
+        this.applyTextSettingsBtn = document.getElementById('applyTextSettings');
     }
 
     attachEventListeners() {
@@ -96,6 +103,22 @@ class PDFEditor {
             this.highlightOpacity = parseFloat(e.target.value);
             this.opacityValue.textContent = this.highlightOpacity.toFixed(1);
         });
+
+        if (this.openTextSettingsBtn) {
+            this.openTextSettingsBtn.addEventListener('click', () => {
+                this.openTextSettings();
+            });
+        }
+        if (this.closeTextSettingsBtn) {
+            this.closeTextSettingsBtn.addEventListener('click', () => {
+                this.closeTextSettings();
+            });
+        }
+        if (this.applyTextSettingsBtn) {
+            this.applyTextSettingsBtn.addEventListener('click', () => {
+                this.applyTextSettings();
+            });
+        }
 
         // Prevent right-click context menu (prevents download)
         document.addEventListener('contextmenu', (e) => {
@@ -525,9 +548,13 @@ class PDFEditor {
             clientY = event.clientY;
         }
 
+        // نعوّض فرق الـ scale بين حجم الكانفس الفعلي وحجمه على الشاشة (خاصة في الموبايل مع width: 100%)
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+
         return {
-            x: clientX - rect.left,
-            y: clientY - rect.top
+            x: (clientX - rect.left) * scaleX,
+            y: (clientY - rect.top) * scaleY
         };
     }
 
@@ -744,6 +771,38 @@ class PDFEditor {
             const p = this.loadingOverlay.querySelector('p');
             if (p) p.textContent = text;
         }
+    }
+
+    openTextSettings() {
+        if (!this.textSettingsModal) return;
+        // مزامنة قيم النص الحالية
+        if (this.textColorInput) this.textColorInput.value = this.currentColor;
+        if (this.textSizeInput) {
+            this.textSizeInput.value = this.currentSize;
+            if (this.textSizeValue) this.textSizeValue.textContent = this.currentSize;
+        }
+        this.textSettingsModal.style.display = 'flex';
+    }
+
+    closeTextSettings() {
+        if (!this.textSettingsModal) return;
+        this.textSettingsModal.style.display = 'none';
+    }
+
+    applyTextSettings() {
+        if (this.textColorInput) {
+            this.currentColor = this.textColorInput.value;
+            if (this.colorPicker) this.colorPicker.value = this.currentColor;
+        }
+        if (this.textSizeInput) {
+            const size = parseInt(this.textSizeInput.value, 10);
+            if (!isNaN(size)) {
+                this.currentSize = size;
+                if (this.sizeSlider) this.sizeSlider.value = String(size);
+                if (this.sizeValue) this.sizeValue.textContent = size;
+            }
+        }
+        this.closeTextSettings();
     }
 }
 

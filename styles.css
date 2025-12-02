@@ -260,6 +260,50 @@ body {
     }
 }
 
+.modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 200;
+}
+
+.modal-content {
+    background: #fff;
+    padding: 1.5rem;
+    border-radius: 8px;
+    min-width: 260px;
+    max-width: 90vw;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+.modal-content h2 {
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+}
+
+.modal-group {
+    margin-bottom: 0.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.modal-group label {
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
 /* Responsive (mobile) */
 @media (max-width: 768px) {
     .container {
@@ -294,6 +338,18 @@ body {
 
     .pdf-container {
         padding: 1rem 0.5rem;
+        align-items: center;
+    }
+
+    .pdf-page {
+        width: 100%;
+        max-width: 100%;
+        overflow: hidden;
+    }
+
+    .pdf-page canvas {
+        width: 100% !important;
+        height: auto !important;
     }
 }
 

@@ -42,6 +42,9 @@
                 <input type="range" id="opacitySlider" min="0.1" max="1" step="0.1" value="0.3">
                 <span id="opacityValue">0.3</span>
             </div>
+            <div class="tool-group">
+                <button id="openTextSettings" class="btn btn-small">⚙️</button>
+            </div>
         </div>
 
         <div class="main-content">
@@ -69,6 +72,25 @@
     <div id="loadingOverlay" class="loading-overlay" style="display: none;">
         <div class="spinner"></div>
         <p>Loading PDF, please wait...</p>
+    </div>
+
+    <div id="textSettingsModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2>Text Settings</h2>
+            <div class="modal-group">
+                <label for="textColorInput">Color:</label>
+                <input type="color" id="textColorInput" value="#ff0000">
+            </div>
+            <div class="modal-group">
+                <label for="textSizeInput">Size:</label>
+                <input type="range" id="textSizeInput" min="1" max="20" value="3">
+                <span id="textSizeValue">3</span>
+            </div>
+            <div class="modal-actions">
+                <button id="closeTextSettings" class="btn btn-small btn-danger">Close</button>
+                <button id="applyTextSettings" class="btn btn-small btn-success">Apply</button>
+            </div>
+        </div>
     </div>
 
     <canvas id="annotationCanvas" style="display: none;"></canvas>
