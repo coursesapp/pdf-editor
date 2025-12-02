@@ -6,8 +6,19 @@ class PDFEditor {
         this.zoom = 1.0;
         this.annotations = [];
         this.currentTool = 'select';
+
+        // Global defaults (kept for backward compatibility)
         this.currentColor = '#ff0000';
         this.currentSize = 3;
+
+        // Per-tool settings
+        this.textColor = '#ff0000';
+        this.textSize = 3;
+
+        this.drawColor = '#ff0000';
+        this.drawSize = 3;
+
+        this.highlightColor = '#ffff00';
         this.highlightOpacity = 0.3;
         this.isDrawing = false;
         this.startX = 0;
@@ -17,6 +28,9 @@ class PDFEditor {
         this.draggingAnnotation = null;
         this.dragOffsetX = 0;
         this.dragOffsetY = 0;
+
+        // For editing a specific text annotation via modal
+        this.editingTextAnnotation = null;
         
         this.initializeElements();
         this.attachEventListeners();
@@ -61,19 +75,33 @@ class PDFEditor {
         this.statusBar = document.getElementById('statusBar');
         this.statusText = document.getElementById('statusText');
         this.toolButtons = document.querySelectorAll('.tool-btn');
-        this.colorPicker = document.getElementById('colorPicker');
-        this.sizeSlider = document.getElementById('sizeSlider');
-        this.sizeValue = document.getElementById('sizeValue');
-        this.opacitySlider = document.getElementById('opacitySlider');
-        this.opacityValue = document.getElementById('opacityValue');
         this.loadingOverlay = document.getElementById('loadingOverlay');
         this.openTextSettingsBtn = document.getElementById('openTextSettings');
         this.textSettingsModal = document.getElementById('textSettingsModal');
+        this.textContentInput = document.getElementById('textContentInput');
         this.textColorInput = document.getElementById('textColorInput');
         this.textSizeInput = document.getElementById('textSizeInput');
         this.textSizeValue = document.getElementById('textSizeValue');
         this.closeTextSettingsBtn = document.getElementById('closeTextSettings');
         this.applyTextSettingsBtn = document.getElementById('applyTextSettings');
+
+        // Draw settings modal elements
+        this.openDrawSettingsBtn = document.getElementById('openDrawSettings');
+        this.drawSettingsModal = document.getElementById('drawSettingsModal');
+        this.drawColorInput = document.getElementById('drawColorInput');
+        this.drawSizeInput = document.getElementById('drawSizeInput');
+        this.drawSizeValue = document.getElementById('drawSizeValue');
+        this.closeDrawSettingsBtn = document.getElementById('closeDrawSettings');
+        this.applyDrawSettingsBtn = document.getElementById('applyDrawSettings');
+
+        // Highlight settings modal elements
+        this.openHighlightSettingsBtn = document.getElementById('openHighlightSettings');
+        this.highlightSettingsModal = document.getElementById('highlightSettingsModal');
+        this.highlightColorInput = document.getElementById('highlightColorInput');
+        this.highlightOpacityInput = document.getElementById('highlightOpacityInput');
+        this.highlightOpacityValue = document.getElementById('highlightOpacityValue');
+        this.closeHighlightSettingsBtn = document.getElementById('closeHighlightSettings');
+        this.applyHighlightSettingsBtn = document.getElementById('applyHighlightSettings');
     }
 
     attachEventListeners() {
@@ -90,23 +118,9 @@ class PDFEditor {
             });
         });
 
-        this.colorPicker.addEventListener('change', (e) => {
-            this.currentColor = e.target.value;
-        });
-
-        this.sizeSlider.addEventListener('input', (e) => {
-            this.currentSize = parseInt(e.target.value);
-            this.sizeValue.textContent = this.currentSize;
-        });
-
-        this.opacitySlider.addEventListener('input', (e) => {
-            this.highlightOpacity = parseFloat(e.target.value);
-            this.opacityValue.textContent = this.highlightOpacity.toFixed(1);
-        });
-
         if (this.openTextSettingsBtn) {
             this.openTextSettingsBtn.addEventListener('click', () => {
-                this.openTextSettings();
+                this.openTextSettings(null);
             });
         }
         if (this.closeTextSettingsBtn) {
@@ -117,6 +131,40 @@ class PDFEditor {
         if (this.applyTextSettingsBtn) {
             this.applyTextSettingsBtn.addEventListener('click', () => {
                 this.applyTextSettings();
+            });
+        }
+
+        // Draw settings modal
+        if (this.openDrawSettingsBtn) {
+            this.openDrawSettingsBtn.addEventListener('click', () => {
+                this.openDrawSettings();
+            });
+        }
+        if (this.closeDrawSettingsBtn) {
+            this.closeDrawSettingsBtn.addEventListener('click', () => {
+                this.closeDrawSettings();
+            });
+        }
+        if (this.applyDrawSettingsBtn) {
+            this.applyDrawSettingsBtn.addEventListener('click', () => {
+                this.applyDrawSettings();
+            });
+        }
+
+        // Highlight settings modal
+        if (this.openHighlightSettingsBtn) {
+            this.openHighlightSettingsBtn.addEventListener('click', () => {
+                this.openHighlightSettings();
+            });
+        }
+        if (this.closeHighlightSettingsBtn) {
+            this.closeHighlightSettingsBtn.addEventListener('click', () => {
+                this.closeHighlightSettings();
+            });
+        }
+        if (this.applyHighlightSettingsBtn) {
+            this.applyHighlightSettingsBtn.addEventListener('click', () => {
+                this.applyHighlightSettings();
             });
         }
 
@@ -305,7 +353,7 @@ class PDFEditor {
 
             if (this.currentTool === 'draw') {
                 // ارسم الجزء الحالي
-                this.drawLine(ctx, this.startX, this.startY, currentX, currentY);
+                this.drawLine(ctx, this.startX, this.startY, currentX, currentY, this.drawColor, this.drawSize);
                 // خزّن هذا الجزء كـ annotation عشان يرجع بعد إعادة الفتح
                 this.saveAnnotation('draw', pageNum, {
                     type: 'line',
@@ -313,8 +361,8 @@ class PDFEditor {
                     startY: this.startY,
                     endX: currentX,
                     endY: currentY,
-                    color: this.currentColor,
-                    size: this.currentSize
+                    color: this.drawColor,
+                    size: this.drawSize
                 });
                 // حدّث نقطة البداية للجزء اللي بعده
                 this.startX = currentX;
@@ -327,7 +375,7 @@ class PDFEditor {
                 const previewW = Math.abs(currentX - this.startX);
                 const previewH = Math.abs(currentY - this.startY);
                 ctx.save();
-                ctx.fillStyle = this.currentColor;
+                ctx.fillStyle = this.highlightColor;
                 ctx.globalAlpha = this.highlightOpacity;
                 ctx.fillRect(previewX, previewY, previewW, previewH);
                 ctx.restore();
@@ -343,28 +391,9 @@ class PDFEditor {
                 const ann = this.draggingAnnotation;
                 this.draggingAnnotation = null;
 
-                // لو الضغط كان مجرد نقرة خفيفة (من غير سحب كبير) افتح تعديل النص
+                // لو الضغط كان مجرد نقرة خفيفة (من غير سحب كبير) افتح نافذة إعدادات النص للتعديل
                 if (moveDistance < 5 && ann.type === 'text') {
-                    const currentText = ann.data.text || '';
-                    const newText = prompt('Edit text:', currentText);
-
-                    // لو المستخدم لغى التعديل، أعد الرسم فقط
-                    if (newText === null) {
-                        this.renderAnnotations();
-                        return;
-                    }
-
-                    ann.data.text = newText;
-
-                    // حدّث العرض والارتفاع بناءً على النص الجديد
-                    const ctxForMeasure = canvas.getContext('2d');
-                    const fontSize = (ann.data.size || this.currentSize) * 5;
-                    ctxForMeasure.font = `${fontSize}px Arial`;
-                    const metrics = ctxForMeasure.measureText(newText);
-                    ann.data.width = metrics.width;
-                    ann.data.height = fontSize;
-
-                    this.renderAnnotations();
+                    this.openTextSettings(ann);
                     return;
                 }
 
@@ -382,7 +411,7 @@ class PDFEditor {
                     y: Math.min(this.startY, endY),
                     width: Math.abs(endX - this.startX),
                     height: Math.abs(endY - this.startY),
-                    color: this.currentColor,
+                    color: this.highlightColor,
                     opacity: this.highlightOpacity
                 });
                 // أعد رسم الـ annotations عشان الـ highlight يظهر فورًا
@@ -436,9 +465,9 @@ class PDFEditor {
         }, { passive: false });
     }
 
-    drawLine(ctx, x1, y1, x2, y2) {
-        ctx.strokeStyle = this.currentColor;
-        ctx.lineWidth = this.currentSize;
+    drawLine(ctx, x1, y1, x2, y2, color, size) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = size;
         ctx.lineCap = 'round';
         ctx.beginPath();
         ctx.moveTo(x1, y1);
@@ -456,17 +485,19 @@ class PDFEditor {
         const { x, y } = this.getEventPosition(e, canvas);
 
         const ctx = canvas.getContext('2d');
+        const fontSize = this.textSize * 5;
+        ctx.font = `${fontSize}px Arial`;
         const metrics = ctx.measureText(text);
         const width = metrics.width;
-        const height = this.currentSize * 5;
+        const height = fontSize;
 
         this.saveAnnotation('text', pageNum, {
             type: 'text',
             text: text,
             x: x,
             y: y,
-            color: this.currentColor,
-            size: this.currentSize,
+            color: this.textColor,
+            size: this.textSize,
             width,
             height
         });
@@ -814,36 +845,127 @@ class PDFEditor {
         }
     }
 
-    openTextSettings() {
+    openTextSettings(annotation) {
         if (!this.textSettingsModal) return;
-        // مزامنة قيم النص الحالية
-        if (this.textColorInput) this.textColorInput.value = this.currentColor;
-        if (this.textSizeInput) {
-            this.textSizeInput.value = this.currentSize;
-            if (this.textSizeValue) this.textSizeValue.textContent = this.currentSize;
+
+        this.editingTextAnnotation = annotation || null;
+
+        // مزامنة القيم الحالية
+        if (this.editingTextAnnotation) {
+            const d = this.editingTextAnnotation.data;
+            if (this.textContentInput) this.textContentInput.value = d.text || '';
+            if (this.textColorInput) this.textColorInput.value = d.color || this.textColor;
+            if (this.textSizeInput) {
+                const size = d.size || this.textSize;
+                this.textSizeInput.value = size;
+                if (this.textSizeValue) this.textSizeValue.textContent = size;
+            }
+        } else {
+            if (this.textContentInput) this.textContentInput.value = '';
+            if (this.textColorInput) this.textColorInput.value = this.textColor;
+            if (this.textSizeInput) {
+                this.textSizeInput.value = this.textSize;
+                if (this.textSizeValue) this.textSizeValue.textContent = this.textSize;
+            }
         }
+
         this.textSettingsModal.style.display = 'flex';
     }
 
     closeTextSettings() {
         if (!this.textSettingsModal) return;
         this.textSettingsModal.style.display = 'none';
+        this.editingTextAnnotation = null;
     }
 
     applyTextSettings() {
-        if (this.textColorInput) {
-            this.currentColor = this.textColorInput.value;
-            if (this.colorPicker) this.colorPicker.value = this.currentColor;
+        const color = this.textColorInput ? this.textColorInput.value : this.textColor;
+        const sizeInputVal = this.textSizeInput ? parseInt(this.textSizeInput.value, 10) : this.textSize;
+        const size = !isNaN(sizeInputVal) ? sizeInputVal : this.textSize;
+        const content = this.textContentInput ? this.textContentInput.value : '';
+
+        if (this.editingTextAnnotation) {
+            const ann = this.editingTextAnnotation;
+            const d = ann.data;
+
+            d.color = color;
+            d.size = size;
+
+            if (content.trim() !== '') {
+                d.text = content;
+            }
+
+            // إعادة حساب العرض والارتفاع بناءً على النص والحجم الجديدين
+            const fontSize = size * 5;
+            const tmpCanvas = document.createElement('canvas');
+            const tmpCtx = tmpCanvas.getContext('2d');
+            tmpCtx.font = `${fontSize}px Arial`;
+            const metrics = tmpCtx.measureText(d.text || '');
+            d.width = metrics.width;
+            d.height = fontSize;
+
+            this.renderAnnotations();
+        } else {
+            // تحديث الإعدادات الافتراضية للنص
+            this.textColor = color;
+            this.textSize = size;
         }
-        if (this.textSizeInput) {
-            const size = parseInt(this.textSizeInput.value, 10);
-            if (!isNaN(size)) {
-                this.currentSize = size;
-                if (this.sizeSlider) this.sizeSlider.value = String(size);
-                if (this.sizeValue) this.sizeValue.textContent = size;
+
+        this.closeTextSettings();
+    }
+
+    openDrawSettings() {
+        if (!this.drawSettingsModal) return;
+        if (this.drawColorInput) this.drawColorInput.value = this.drawColor;
+        if (this.drawSizeInput) {
+            this.drawSizeInput.value = this.drawSize;
+            if (this.drawSizeValue) this.drawSizeValue.textContent = this.drawSize;
+        }
+        this.drawSettingsModal.style.display = 'flex';
+    }
+
+    closeDrawSettings() {
+        if (!this.drawSettingsModal) return;
+        this.drawSettingsModal.style.display = 'none';
+    }
+
+    applyDrawSettings() {
+        if (this.drawColorInput) this.drawColor = this.drawColorInput.value;
+        if (this.drawSizeInput) {
+            const sizeVal = parseInt(this.drawSizeInput.value, 10);
+            if (!isNaN(sizeVal)) {
+                this.drawSize = sizeVal;
+                if (this.drawSizeValue) this.drawSizeValue.textContent = this.drawSize;
             }
         }
-        this.closeTextSettings();
+        this.closeDrawSettings();
+    }
+
+    openHighlightSettings() {
+        if (!this.highlightSettingsModal) return;
+        if (this.highlightColorInput) this.highlightColorInput.value = this.highlightColor;
+        if (this.highlightOpacityInput) {
+            this.highlightOpacityInput.value = this.highlightOpacity;
+            if (this.highlightOpacityValue) this.highlightOpacityValue.textContent = this.highlightOpacity.toFixed(1);
+        }
+        this.highlightSettingsModal.style.display = 'flex';
+    }
+
+    closeHighlightSettings() {
+        if (!this.highlightSettingsModal) return;
+        this.highlightSettingsModal.style.display = 'none';
+    }
+
+    applyHighlightSettings() {
+        if (this.highlightColorInput) this.highlightColor = this.highlightColorInput.value;
+        if (this.highlightOpacityInput) {
+            const opVal = parseFloat(this.highlightOpacityInput.value);
+            if (!isNaN(opVal)) {
+                this.highlightOpacity = opVal;
+                if (this.highlightOpacityValue) this.highlightOpacityValue.textContent = this.highlightOpacity.toFixed(1);
+            }
+        }
+        this.closeHighlightSettings();
     }
 }
 
