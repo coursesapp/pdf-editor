@@ -295,17 +295,6 @@ body {
     .pdf-container {
         padding: 1rem 0.5rem;
     }
-
-    .pdf-page {
-        width: 100%;
-        max-width: 100%;
-        overflow: hidden;
-    }
-
-    .pdf-page canvas {
-        width: 100% !important;
-        height: auto !important;
-    }
 }
 
 /* Prevent text selection during drawing */

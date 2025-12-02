@@ -525,13 +525,9 @@ class PDFEditor {
             clientY = event.clientY;
         }
 
-        // نعوّض فرق الـ scale بين حجم الكانفس الفعلي وحجمه على الشاشة (خاصة في الموبايل)
-        const scaleX = canvas.width / rect.width;
-        const scaleY = canvas.height / rect.height;
-
         return {
-            x: (clientX - rect.left) * scaleX,
-            y: (clientY - rect.top) * scaleY
+            x: clientX - rect.left,
+            y: clientY - rect.top
         };
     }
 
