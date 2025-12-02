@@ -5,6 +5,9 @@ class PDFEditor {
         this.totalPages = 0;
         this.zoom = 1.0;
         this.annotations = [];
+        // History stack for undo
+        this.history = [];
+        this.maxHistory = 50;
         this.currentTool = 'select';
 
         // Global defaults (kept for backward compatibility)
@@ -115,6 +118,9 @@ class PDFEditor {
         this.imageScaleValue = document.getElementById('imageScaleValue');
         this.closeImageSettingsBtn = document.getElementById('closeImageSettings');
         this.applyImageSettingsBtn = document.getElementById('applyImageSettings');
+
+        // Undo button
+        this.undoBtn = document.getElementById('undoBtn');
     }
 
     attachEventListeners() {
@@ -234,6 +240,13 @@ class PDFEditor {
             });
         }
 
+        // Undo button
+        if (this.undoBtn) {
+            this.undoBtn.addEventListener('click', () => {
+                this.undoLastAction();
+            });
+        }
+
         // Prevent right-click context menu (prevents download)
         document.addEventListener('contextmenu', (e) => {
             if (e.target.closest('.pdf-container')) {
@@ -241,8 +254,15 @@ class PDFEditor {
             }
         });
 
-        // Prevent common download shortcuts
+        // Prevent common download shortcuts + add Undo shortcut
         document.addEventListener('keydown', (e) => {
+            // Ctrl+Z → Undo
+            if (e.ctrlKey && (e.key === 'z' || e.key === 'Z')) {
+                e.preventDefault();
+                this.undoLastAction();
+                return;
+            }
+
             // Prevent Ctrl+S (save as), Ctrl+P (print), F12 (dev tools)
             if ((e.ctrlKey && (e.key === 's' || e.key === 'p')) || e.key === 'F12') {
                 e.preventDefault();
@@ -375,6 +395,7 @@ class PDFEditor {
             
             // مسح في وضع erase
             if (this.currentTool === 'erase') {
+                this.pushHistory();
                 this.eraseAt(pageNum, this.startX, this.startY, ctx);
                 return;
             }
@@ -383,6 +404,7 @@ class PDFEditor {
             if (this.currentTool === 'select') {
                 const hit = this.findMovableAnnotationAt(pageNum, this.startX, this.startY, ctx);
                 if (hit) {
+                    this.pushHistory();
                     this.draggingAnnotation = hit;
                     this.dragOffsetX = this.startX - hit.data.x;
                     this.dragOffsetY = this.startY - hit.data.y;
@@ -594,6 +616,7 @@ class PDFEditor {
     }
 
     saveAnnotation(type, pageNum, data) {
+        this.pushHistory();
         this.annotations.push({
             type: type,
             page: pageNum,
@@ -677,6 +700,7 @@ class PDFEditor {
     eraseAt(pageNum, x, y, ctx) {
         const hitIndex = this.findAnnotationIndexAt(pageNum, x, y, ctx);
         if (hitIndex === -1) return;
+        this.pushHistory();
         this.annotations.splice(hitIndex, 1);
         this.renderAnnotations();
     }
@@ -817,6 +841,29 @@ class PDFEditor {
         });
     }
 
+    pushHistory() {
+        try {
+            const snapshot = JSON.parse(JSON.stringify(this.annotations));
+            this.history.push(snapshot);
+            if (this.history.length > this.maxHistory) {
+                this.history.shift();
+            }
+        } catch (e) {
+            console.error('Failed to push history snapshot', e);
+        }
+    }
+
+    undoLastAction() {
+        if (!this.history || this.history.length === 0) {
+            this.updateStatus('Nothing to undo');
+            return;
+        }
+        const previous = this.history.pop();
+        this.annotations = previous || [];
+        this.renderAnnotations();
+        this.updateStatus('Last action undone');
+    }
+
     setTool(tool) {
         this.currentTool = tool;
         this.toolButtons.forEach(btn => {
@@ -853,6 +900,7 @@ class PDFEditor {
 
     clearAnnotations() {
         if (confirm('Are you sure you want to clear all annotations?')) {
+            this.pushHistory();
             this.annotations = [];
             this.renderAnnotations();
             this.updateStatus('All annotations cleared');
@@ -1036,6 +1084,7 @@ class PDFEditor {
         const content = this.textContentInput ? this.textContentInput.value : '';
 
         if (this.editingTextAnnotation) {
+            this.pushHistory();
             const ann = this.editingTextAnnotation;
             const d = ann.data;
 
@@ -1152,6 +1201,7 @@ class PDFEditor {
 
         if (this.editingImageAnnotation) {
             // تعديل صورة موجودة (تغيير الحجم فقط حالياً)
+            this.pushHistory();
             const ann = this.editingImageAnnotation;
             const d = ann.data;
 
