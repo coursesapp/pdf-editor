@@ -335,9 +335,39 @@ class PDFEditor {
         };
 
         const handlePointerUp = (e) => {
-            // إنهاء سحب النص
+            // إنهاء سحب النص + دعم تعديل النص عند الضغط بدون سحب
             if (this.currentTool === 'select' && this.draggingAnnotation) {
+                const { x: endX, y: endY } = this.getEventPosition(e, canvas);
+                const moveDistance = Math.hypot(endX - this.startX, endY - this.startY);
+
+                const ann = this.draggingAnnotation;
                 this.draggingAnnotation = null;
+
+                // لو الضغط كان مجرد نقرة خفيفة (من غير سحب كبير) افتح تعديل النص
+                if (moveDistance < 5 && ann.type === 'text') {
+                    const currentText = ann.data.text || '';
+                    const newText = prompt('Edit text:', currentText);
+
+                    // لو المستخدم لغى التعديل، أعد الرسم فقط
+                    if (newText === null) {
+                        this.renderAnnotations();
+                        return;
+                    }
+
+                    ann.data.text = newText;
+
+                    // حدّث العرض والارتفاع بناءً على النص الجديد
+                    const ctxForMeasure = canvas.getContext('2d');
+                    const fontSize = (ann.data.size || this.currentSize) * 5;
+                    ctxForMeasure.font = `${fontSize}px Arial`;
+                    const metrics = ctxForMeasure.measureText(newText);
+                    ann.data.width = metrics.width;
+                    ann.data.height = fontSize;
+
+                    this.renderAnnotations();
+                    return;
+                }
+
                 return;
             }
 
@@ -375,23 +405,34 @@ class PDFEditor {
 
         // Touch events (for mobile)
         canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
+            // استدعاء منطق الضغط المشترك
             handlePointerDown(e);
+
+            // امنع التمرير فقط في أدوات الرسم/المسح أو عند بدء سحب نص
+            if (this.currentTool !== 'select' || this.draggingAnnotation) {
+                e.preventDefault();
+            }
         }, { passive: false });
 
         canvas.addEventListener('touchmove', (e) => {
-            e.preventDefault();
+            // استدعاء منطق التحريك المشترك
             handlePointerMove(e);
+
+            // لو بنرسم/نمسح أو بنسحب نص امنع التمرير، غير كده اسمح بالتمرير
+            if (this.isDrawing || this.currentTool === 'erase' || this.draggingAnnotation) {
+                e.preventDefault();
+            }
         }, { passive: false });
 
         canvas.addEventListener('touchend', (e) => {
-            e.preventDefault();
+            // استدعاء منطق الإفلات المشترك
             handlePointerUp(e);
+            // مش لازم نمنع التمرير هنا
         }, { passive: false });
 
         canvas.addEventListener('touchcancel', (e) => {
-            e.preventDefault();
             handlePointerLeave(e);
+            // مش لازم نمنع التمرير هنا
         }, { passive: false });
     }
 
